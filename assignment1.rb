@@ -21,14 +21,13 @@ end
 # Student object
 class Student
     @student_id # The unique student id
-    @ranked_courses = Array.new(6) # Array of course ids in order of preference
+    @ranked_courses = Array.new # Array of course ids in order of preference
     @chosen_course  # Course the student is enrolled in
     @chosen_id # The id of the course the student is enrolled in
     @chosen_rank # TODO get rank from array    
 
     def initialize(student_id)
         @student_id = student_id
-        # TODO fill the array of ranked courses
     end
 
     # This function adds a stuent to a course
@@ -124,7 +123,15 @@ end
 
 # Initialize array for student objects
 student_table.each do |row|
-    Students.push(Student.new(row[0]))
+    # make use of find
+    # temp = Students.find {|stu| stu.student_id == row[0]}
+    # temp acts as a pointer to the student object in the array
+    # if temp isn't nil
+    # temp.ranked_courses.push(row[1])
+    # if it is then
+    # new_student = Student.new(row[0])
+    # new_student.ranked_courses.push(row[0])
+    # Students.push(new_student)
 end
 
 # testing
