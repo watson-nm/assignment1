@@ -98,10 +98,10 @@ end
 
 # Get input from user
 print "What is the number of FYS courses/sections being offered? "
-num_FYS = gets.chomp
+num_FYS = gets.chomp.to_i
 
 print "How many students are in the incoming class? "
-num_students = gets.chomp
+num_students = gets.chomp.to_i
 
 print "What is the name of the csv file with the list of FYS courses/sections? "
 courses_file = gets.chomp
@@ -110,9 +110,24 @@ print "What is the name of the csv file with the list of incoming students? "
 students_file = gets.chomp
 
 # Read from the CSV files
-course_table = CSV.parse(File.read(courses_file), headers:false)
-student_table = CSV.parse(File.read(students_file), headers:false)
+course_table = CSV.parse(File.read(courses_file), headers:true)
+student_table = CSV.parse(File.read(students_file), headers:true)
 
+# Create arrays for course and student objects
+Courses = Array.new
+Students = Array.new
+
+# Initialize array for course objects
 course_table.each do |row|
-    puts puts "#{row[0]}, #{row[1]}, #{row[2]}" # This worked
+    Courses.push(Course.new(row[0], row[1], row[2]))
+end
+
+# Initialize array for student objects
+student_table.each do |row|
+    Students.push(Student.new(row[0]))
+end
+
+# testing
+Courses.each do |c|
+    puts c.course_id
 end
