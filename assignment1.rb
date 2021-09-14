@@ -19,15 +19,13 @@ class Course
 end
 
 # Student object
-class Student
-    @student_id # The unique student id
-    @ranked_courses = Array.new # Array of course ids in order of preference
-    @chosen_course  # Course the student is enrolled in
-    @chosen_id # The id of the course the student is enrolled in
-    @chosen_rank # TODO get rank from array    
-
+class Student 
     def initialize(student_id)
         @student_id = student_id
+        @ranked_courses = Array.new # Array of course ids in order of preference
+        @chosen_course  # Course the student is enrolled in
+        @chosen_id # The id of the course the student is enrolled in
+        @chosen_rank # TODO get rank from array
     end
 
     # This function adds a stuent to a course
@@ -123,18 +121,38 @@ end
 
 # Initialize array for student objects
 student_table.each do |row|
-    # make use of find
-    # temp = Students.find {|stu| stu.student_id == row[0]}
-    # temp acts as a pointer to the student object in the array
-    # if temp isn't nil
-    # temp.ranked_courses.push(row[1])
-    # if it is then
-    # new_student = Student.new(row[0])
-    # new_student.ranked_courses.push(row[0])
-    # Students.push(new_student)
+    temp = Students.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id
+    # The variable temp acts as a pointer to the student object in the array
+    if !temp.nil? # If temp is not nil
+        temp.ranked_courses.push(row[1]) # Add the course id to student object's list
+    else
+        new_student = Student.new(row[0]) # No student object was found in the array, so make one
+        new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
+        Students.push(new_student) # Add the new student to the array of students
+    end
 end
 
 # testing
-Courses.each do |c|
-    puts c.course_id
+cFile = File.new("outc.txt", "r+")
+if cFile
+    cFile.syswrite("course_id, course_num, course_title")
+    cFile.syswrite("\n")
+    Courses.each do |c|
+        cFile.syswrite("#{c.course_id}, #{c.course_num}, #{c.course_title}")
+        cFile.syswrite("\n")
+    end
+else
+   puts "Unable to open file!"
+end
+
+sFile = File.new("outs.txt", "r+")
+if sFile
+    sFile.syswrite("student_id")
+    sFile.syswrite("\n")
+    Students.each do |s|
+        sFile.syswrite("#{s.student_id}")
+        sFile.syswrite("\n")
+    end
+else
+   puts "Unable to open file!"
 end
