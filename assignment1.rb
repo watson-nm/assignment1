@@ -10,11 +10,13 @@ class Course
         @course_num = course_num
         @course_title = course_title
         @rankings = Hash.new
+        @num_students = 0
     end
 
     attr_reader :course_id
     attr_reader :course_num
     attr_reader :course_title
+    attr_accessor :num_students
     attr_accessor :rankings
 end
 
@@ -26,21 +28,24 @@ class Student
         @chosen_course  # Course the student is enrolled in
         @chosen_id # The id of the course the student is enrolled in
         @chosen_rank # TODO get rank from array
+        @enrolled = false
     end
 
     # This function adds a stuent to a course
     def enroll_in_course(course)
+        @enrolled = true
         @chosen_course = course # Set chosen course object
         @chosen_id = @choose_course.course_id # Set id of chosen course
         @chosen_rank = @ranked_courses.find_index(@chosen_id) # Get rank of course from array
-        @chosen_course.rankings[@student_id] = @chosen_rank
+        @chosen_course.rankings[@student_id] = @chosen_rank # Add the student and their ranking of the class
+        @choose_course.num_students += 1
+        # I'm pretty sure that if the class the student chose is not in their ranking list, it will be nil
     end
 
-    # This function will check if a course is listed in preferred courses
+    # This function will check the ranking of the course
     # If it is listed then you get the ranking of course
     # If not then you get nil
-    def check_if_listed(course)
-        # Check to see if this course is in list of preferred courses
+    def get_ranking(course)
         idx = @ranked_courses.find_index(course.course_id)
         return idx
     end
@@ -56,40 +61,9 @@ class Student
         end
     end
 
-    # Define this outside of class
-    def try_to_enroll(course)
-        if chosen_course.nil? == true
-            choose_course(course)
-        else
-            # Check to see if course is in list of preferred courses
-            i = -1 # This will take the ranking of the course if found in the ranking list
-            @ranked_courses.each_with_index do |cid, idx|
-                if course.course_id == cid
-                    i = idx
-                end
-            end
-
-            # If the course was in the list see if it is preferred
-            # TODO add a variable to the class for the index of the currently chosen course
-            if i > -1
-                j = -1 # This will take the ranking of the currently chosen course
-                @ranked_courses.each_with_index do |cid, idx|
-                    if chosen_id == cid
-                        j = idx
-                    end
-                end
-
-                # If i < j then it is higher in the ranking
-                if i < j
-                    # The new course is preferred
-                    choose_course(course)
-                end
-            end
-        end
-    end
-
     attr_reader :student_id
     attr_reader :ranked_courses
+    attr_reader :enrolled
     attr_accessor :chosen_course
 end
 
@@ -131,6 +105,95 @@ student_table.each do |row|
         Students.push(new_student) # Add the new student to the array of students
     end
 end
+
+# Try and enroll student in class
+def try_to_enroll(student, course)
+    course_rank = student.get_ranking(course)
+    if course.num_students < 18
+        student.enroll_in_course(course)
+    else # Replacement section
+        # Check to see if this student ranked the course higher than another student
+        if course.rankings.values.any? {|v| v == nil}
+            lowest_rank = nil # If there exists a student who didn't have this course in their ranking, find them
+        else
+            lowest_rank = course.rankings.values.max # This should get the student who ranked the class lowest
+        end
+
+        if lowest_rank > course_rank || lowest_rank.nil? == true # Compare ranks; If there was a nil in the rankings, replace them
+            rank_key = course.rankings.key(lowest_rank)
+
+            # Lines that remove a student from the course to make room
+            # Remember that even though you removed the student, they retain the information of the course
+            kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed
+            kicked_student.enrolled = false # Reset their enrollment status to false
+
+            course.rankings.delete(rank_key) # Delete the old student from the course hash map
+            course.num_students -= 1 # This is here because the function enroll_in_course increments num_students
+        end
+    end
+end
+
+# This is the important main loop
+while Students.any? {|stu| stu.enrolled == false}
+    student = Students.find {|stu| stu.enrolled == false}
+
+    # For every course the student has ranked try to enroll while not enrolled
+    student.ranked_courses.each do |course|
+        try_to_enroll(student, course)
+
+        # If the student is enrolled, break the loop
+        if student.enrolled == true
+            break
+        end
+    end
+
+    # If a student has tried to get into all their ranked courses and failed
+    # Put them in the class with the least amount of students
+    # TODO Make sure that their chosen_rank value is nil
+    # TODO Make sure that the 'Compare ranks' code knows how to handle nil
+    if student.enrolled == false
+        # Find the lowest number of students in a course
+        lowest = Course.min_by {|c| c.num_students} # This should be the lowest number, not the course object itself
+
+        unranked_course = Course.find {|c| c.num_students == lowest} # Gets a course with the lowest number of students
+        student.enroll_in_course(unranked_course) # Enroll the student in the course
+        # TODO Make sure that the 'Compare ranks' knows how to handle this unranked course
+    end
+
+end
+
+# This is old and can be deleted when I'm sure I don't need to reference it
+=begin
+def try_to_enroll(course)
+    if chosen_course.nil? == true
+        choose_course(course)
+    else
+        # Check to see if course is in list of preferred courses
+        i = nil # This will take the ranking of the course if found in the ranking list
+        @ranked_courses.each_with_index do |cid, idx|
+            if course.course_id == cid
+                i = idx
+            end
+        end
+
+        # If the course was in the list see if it is preferred
+        if !i.nil?
+            j = nil # This will take the ranking of the currently chosen course
+            @ranked_courses.each_with_index do |cid, idx|
+                if chosen_id == cid
+                    j = idx
+                end
+            end
+
+            # If i < j then it is higher in the ranking
+            if i < j || j 
+                # The new course is preferred
+                choose_course(course)
+            end
+        end
+    end
+end
+=end
 
 # testing
 cFile = File.new("outc.txt", "r+")
