@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+# TODO make sure that the classes aren't overloaded
+
 require 'csv'
 
 # Course object
@@ -31,15 +33,24 @@ class Student
         @enrolled = false
     end
 
-    # This function adds a stuent to a course
-    def enroll_in_course(course)
+    # This function adds a stuent to a course in their ranking list
+    def enroll_in_ranked_course(course)
         @enrolled = true
         @chosen_course = course # Set chosen course object
-        @chosen_id = @choose_course.course_id # Set id of chosen course
+        @chosen_id = @chosen_course.course_id # Set id of chosen course
         @chosen_rank = @ranked_courses.find_index(@chosen_id) # Get rank of course from array
         @chosen_course.rankings[@student_id] = @chosen_rank # Add the student and their ranking of the class
-        @choose_course.num_students += 1
-        # I'm pretty sure that if the class the student chose is not in their ranking list, it will be nil
+        @chosen_course.num_students += 1
+    end
+
+    # This function adds a student to a course not in thier ranking list
+    def enroll_in_any_course(course)
+        @enrolled = true
+        @chosen_course = course # Set chosen course object
+        @chosen_id = @chosen_course.course_id # Set id of chosen course
+        @chosen_rank = nil # Set the chosen course rank to nil, since it wasn't in the list
+        @chosen_course.rankings[@student_id] = nil # Add the student and their ranking of the class
+        @chosen_course.num_students += 1
     end
 
     # This function will check the ranking of the course
@@ -50,20 +61,10 @@ class Student
         return idx
     end
 
-    # Check to see if new course preferred
-    # If it is, then return true
-    # If it isn't, then return false
-    def check_if_preferred(idx)
-        if idx < @chosen_rank
-            return true
-        else
-            return false
-        end
-    end
-
     attr_reader :student_id
     attr_reader :ranked_courses
-    attr_reader :enrolled
+    attr_reader :chosen_id
+    attr_accessor :enrolled
     attr_accessor :chosen_course
 end
 
@@ -88,6 +89,9 @@ student_table = CSV.parse(File.read(students_file), headers:true)
 Courses = Array.new
 Students = Array.new
 
+# Array of students who couldn't get into any classes
+Lost = Array.new
+
 # Initialize array for course objects
 course_table.each do |row|
     Courses.push(Course.new(row[0], row[1], row[2]))
@@ -98,10 +102,15 @@ student_table.each do |row|
     temp = Students.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id
     # The variable temp acts as a pointer to the student object in the array
     if !temp.nil? # If temp is not nil
-        temp.ranked_courses.push(row[1]) # Add the course id to student object's list
+        # Check to make sure that the course actually exists
+        if Courses.any? {|c| c.course_id == row[1]} == true
+            temp.ranked_courses.push(row[1]) # Add the course id to student object's list
+        end
     else
         new_student = Student.new(row[0]) # No student object was found in the array, so make one
-        new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
+        if Courses.any? {|c| c.course_id == row[1]} == true
+            new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
+        end
         Students.push(new_student) # Add the new student to the array of students
     end
 end
@@ -109,27 +118,36 @@ end
 # Try and enroll student in class
 def try_to_enroll(student, course)
     course_rank = student.get_ranking(course)
+
     if course.num_students < 18
-        student.enroll_in_course(course)
+        student.enroll_in_ranked_course(course)
     else # Replacement section
         # Check to see if this student ranked the course higher than another student
-        if course.rankings.values.any? {|v| v == nil}
-            lowest_rank = nil # If there exists a student who didn't have this course in their ranking, find them
-        else
-            lowest_rank = course.rankings.values.max # This should get the student who ranked the class lowest
-        end
-
-        if lowest_rank > course_rank || lowest_rank.nil? == true # Compare ranks; If there was a nil in the rankings, replace them
-            rank_key = course.rankings.key(lowest_rank)
-
+        if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
+            rank_key = nil 
             # Lines that remove a student from the course to make room
-            # Remember that even though you removed the student, they retain the information of the course
             kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed
             kicked_student.enrolled = false # Reset their enrollment status to false
+            kicked_student.chosen_course = nil # Make sure that they don't retain the course
 
             course.rankings.delete(rank_key) # Delete the old student from the course hash map
-            course.num_students -= 1 # This is here because the function enroll_in_course increments num_students
-        end
+        else
+            lowest_rank = course.rankings.values.max # This should get the student who ranked the class lowest
+            if lowest_rank > course_rank # Compare ranks FIXME is the course here an object or the id
+                rank_key = course.rankings.key(lowest_rank)
+    
+                # Lines that remove a student from the course to make room
+                kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed
+                kicked_student.enrolled = false # Reset their enrollment status to false
+                kicked_student.chosen_course = nil # Make sure that they don't retain the course
+    
+                course.rankings.delete(rank_key) # Delete the old student from the course hash map
+                course.num_students -= 1 # This is here because enrollement functions increment num_students
+    
+                # Enrol the student
+                student.enroll_in_ranked_course(course)
+            end
+        end        
     end
 end
 
@@ -138,8 +156,11 @@ while Students.any? {|stu| stu.enrolled == false}
     student = Students.find {|stu| stu.enrolled == false}
 
     # For every course the student has ranked try to enroll while not enrolled
-    student.ranked_courses.each do |course|
-        try_to_enroll(student, course)
+    student.ranked_courses.each do |ranked_course_id|
+        # This is so that the course object is being passed to the function, not the course id
+        ranked_course = Courses.find {|c| c.course_id == ranked_course_id}
+
+        try_to_enroll(student, ranked_course)
 
         # If the student is enrolled, break the loop
         if student.enrolled == true
@@ -147,18 +168,36 @@ while Students.any? {|stu| stu.enrolled == false}
         end
     end
 
+    # This runs if the student wasn't able to make it into any of their preffered classes
+    if student.enrolled == false
+        course_least_students = Courses.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
+        if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
+            student.enroll_in_any_course(course_least_students) # TODO make sure this works
+        end
+    end
+
+    ###### Place student in list of unenrolled students if they couldn't get into any class ######
+    if student.enrolled == false
+        student.enrolled = true # They are not actually enrolled; they're enrolled in the loser list
+        student.chosen_course = nil # Just to make sure
+        Lost.push(student)
+    end
+    ############
+
+    ###### Place students in course if they run out of options ######
     # If a student has tried to get into all their ranked courses and failed
     # Put them in the class with the least amount of students
     # TODO Make sure that their chosen_rank value is nil
     # TODO Make sure that the 'Compare ranks' code knows how to handle nil
-    if student.enrolled == false
-        # Find the lowest number of students in a course
-        lowest = Course.min_by {|c| c.num_students} # This should be the lowest number, not the course object itself
-
-        unranked_course = Course.find {|c| c.num_students == lowest} # Gets a course with the lowest number of students
-        student.enroll_in_course(unranked_course) # Enroll the student in the course
-        # TODO Make sure that the 'Compare ranks' knows how to handle this unranked course
-    end
+    #if student.enrolled == false
+    #    # Find the lowest number of students in a course
+    #    lowest = Course.min_by {|c| c.num_students} # This should be the lowest number, not the course object itself
+    #
+    #    unranked_course = Course.find {|c| c.num_students == lowest} # Gets a course with the lowest number of students
+    #    student.enroll_in_course(unranked_course) # Enroll the student in the course
+    #    # TODO Make sure that the 'Compare ranks' knows how to handle this unranked course
+    #end
+    ############
 
 end
 
@@ -196,26 +235,20 @@ end
 =end
 
 # testing
-cFile = File.new("outc.txt", "r+")
-if cFile
-    cFile.syswrite("course_id, course_num, course_title")
-    cFile.syswrite("\n")
-    Courses.each do |c|
-        cFile.syswrite("#{c.course_id}, #{c.course_num}, #{c.course_title}")
-        cFile.syswrite("\n")
-    end
-else
-   puts "Unable to open file!"
-end
-
-sFile = File.new("outs.txt", "r+")
+sFile = File.new("outs.txt", "w+")
 if sFile
-    sFile.syswrite("student_id")
+    i = 0
+    sFile.syswrite("student_id, class")
     sFile.syswrite("\n")
     Students.each do |s|
-        sFile.syswrite("#{s.student_id}")
-        sFile.syswrite("\n")
+        if s.chosen_course.nil? == false # If the chosen course is not nil, meaning they are actually enrolled in something
+            sFile.syswrite("#{s.student_id}, #{s.chosen_id}")
+            sFile.syswrite("\n")
+            i += 1
+        end
     end
+    puts "number of students is #{Students.length}"
+    puts "number of students in a course: #{i}"
 else
    puts "Unable to open file!"
 end
