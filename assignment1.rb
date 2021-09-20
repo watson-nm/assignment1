@@ -33,12 +33,28 @@ class Student
         @enrolled = false
     end
 
+    def find_course_index(course_id)
+        if ranked_courses.length > 0
+            i = 0
+            @ranked_courses.each do |r|
+                if r == course_id
+                    return i
+                end
+                i += 1
+            end
+
+            return nil
+        else
+            return nil
+        end
+    end
+
     # This function adds a stuent to a course in their ranking list
     def enroll_in_ranked_course(course)
         @enrolled = true
         @chosen_course = course # Set chosen course object
         @chosen_id = @chosen_course.course_id # Set id of chosen course
-        @chosen_rank = @ranked_courses.find_index(@chosen_id) # Get rank of course from array
+        @chosen_rank = find_course_index(@chosen_id) # Get rank of course from array
         @chosen_course.rankings[@student_id] = @chosen_rank # Add the student and their ranking of the class
         @chosen_course.num_students += 1
     end
@@ -68,6 +84,19 @@ class Student
     attr_accessor :chosen_course
 end
 
+# Array to find a student in the array by their id
+# FIXME not returnin student object?
+def find_student_by_id(students_array, id)
+    students_array.each do |student|
+        if student.student_id == id
+            return student
+        end
+    end
+
+    return nil
+end
+    
+
 # Get input from user
 print "What is the number of FYS courses/sections being offered? "
 num_FYS = gets.chomp.to_i
@@ -75,10 +104,10 @@ num_FYS = gets.chomp.to_i
 print "How many students are in the incoming class? "
 num_students = gets.chomp.to_i
 
-print "What is the name of the csv file with the list of FYS courses/sections? "
+print "What is the name of the csv file with the list of FYS courses/sections (example: in.csv)? "
 courses_file = gets.chomp
 
-print "What is the name of the csv file with the list of incoming students? "
+print "What is the name of the csv file with the list of incoming students (example: in.csv)? "
 students_file = gets.chomp
 
 # Read from the CSV files
@@ -99,7 +128,8 @@ end
 
 # Initialize array for student objects
 student_table.each do |row|
-    temp = Students.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id
+    #temp = Students.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id DELETE
+    temp = find_student_by_id(Students, row[0])
     # The variable temp acts as a pointer to the student object in the array
     if !temp.nil? # If temp is not nil
         # Check to make sure that the course actually exists
@@ -126,7 +156,8 @@ def try_to_enroll(student, course)
         if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
             rank_key = nil 
             # Lines that remove a student from the course to make room
-            kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed
+            #kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
+            kicked_student = find_student_by_id(Students, rank_key)
             kicked_student.enrolled = false # Reset their enrollment status to false
             kicked_student.chosen_course = nil # Make sure that they don't retain the course
 
@@ -137,7 +168,8 @@ def try_to_enroll(student, course)
                 rank_key = course.rankings.key(lowest_rank)
     
                 # Lines that remove a student from the course to make room
-                kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed
+                #kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
+                kicked_student = find_student_by_id(Students, rank_key)
                 kicked_student.enrolled = false # Reset their enrollment status to false
                 kicked_student.chosen_course = nil # Make sure that they don't retain the course
     
@@ -151,9 +183,33 @@ def try_to_enroll(student, course)
     end
 end
 
-# This is the important main loop
-while Students.any? {|stu| stu.enrolled == false}
-    student = Students.find {|stu| stu.enrolled == false}
+# Check if there are any unenrolled students
+def check_if_unenrolled_students(students_array)
+    students_array.each do |student|
+        if student.enrolled == false
+            return true
+        end
+    end
+
+    return false
+end
+
+# Return an unenrolled student
+def find_unenrolled_student(students_array)
+    students_array.each do |student|
+        if student.enrolled == false
+            return student
+        end
+    end
+    return nul
+end
+
+
+# This is the important main loop; put this and the students arrays in a function
+#while Students.any? {|stu| stu.enrolled == false}
+while check_if_unenrolled_students(Students) == true
+    #student = Students.find {|stu| stu.enrolled == false}
+    student = find_unenrolled_student(Students)
 
     # For every course the student has ranked try to enroll while not enrolled
     student.ranked_courses.each do |ranked_course_id|
@@ -184,55 +240,7 @@ while Students.any? {|stu| stu.enrolled == false}
     end
     ############
 
-    ###### Place students in course if they run out of options ######
-    # If a student has tried to get into all their ranked courses and failed
-    # Put them in the class with the least amount of students
-    # TODO Make sure that their chosen_rank value is nil
-    # TODO Make sure that the 'Compare ranks' code knows how to handle nil
-    #if student.enrolled == false
-    #    # Find the lowest number of students in a course
-    #    lowest = Course.min_by {|c| c.num_students} # This should be the lowest number, not the course object itself
-    #
-    #    unranked_course = Course.find {|c| c.num_students == lowest} # Gets a course with the lowest number of students
-    #    student.enroll_in_course(unranked_course) # Enroll the student in the course
-    #    # TODO Make sure that the 'Compare ranks' knows how to handle this unranked course
-    #end
-    ############
-
 end
-
-# This is old and can be deleted when I'm sure I don't need to reference it
-=begin
-def try_to_enroll(course)
-    if chosen_course.nil? == true
-        choose_course(course)
-    else
-        # Check to see if course is in list of preferred courses
-        i = nil # This will take the ranking of the course if found in the ranking list
-        @ranked_courses.each_with_index do |cid, idx|
-            if course.course_id == cid
-                i = idx
-            end
-        end
-
-        # If the course was in the list see if it is preferred
-        if !i.nil?
-            j = nil # This will take the ranking of the currently chosen course
-            @ranked_courses.each_with_index do |cid, idx|
-                if chosen_id == cid
-                    j = idx
-                end
-            end
-
-            # If i < j then it is higher in the ranking
-            if i < j || j 
-                # The new course is preferred
-                choose_course(course)
-            end
-        end
-    end
-end
-=end
 
 # testing
 sFile = File.new("outs.txt", "w+")
@@ -251,4 +259,17 @@ if sFile
     puts "number of students in a course: #{i}"
 else
    puts "Unable to open file!"
+end
+
+cFile = File.new("outc.txt", "w+")
+if cFile
+    i = 0
+    cFile.syswrite("num students")
+    sFile.syswrite("\n")
+    Courses.each do |c|
+        cFile.syswrite("#{c.num_students}")
+        cFile.syswrite("\n")
+        i += 1
+    end
+    puts "number of courses is: #{i}"
 end
