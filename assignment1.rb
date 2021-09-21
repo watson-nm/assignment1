@@ -1,7 +1,5 @@
 #!/usr/bin/env ruby
 
-# TODO make sure that the classes aren't overloaded
-
 require 'csv'
 
 # Course object
@@ -95,31 +93,6 @@ def find_student_by_id(students_array, id)
 
     return nil
 end
-    
-
-# Get input from user
-print "What is the number of FYS courses/sections being offered? "
-num_FYS = gets.chomp.to_i
-
-print "How many students are in the incoming class? "
-num_students = gets.chomp.to_i
-
-print "What is the name of the csv file with the list of FYS courses/sections (example: in.csv)? "
-courses_file = gets.chomp
-
-print "What is the name of the csv file with the list of incoming students (example: in.csv)? "
-students_file = gets.chomp
-
-# Read from the CSV files
-course_table = CSV.parse(File.read(courses_file), headers:true)
-student_table = CSV.parse(File.read(students_file), headers:true)
-
-# Create arrays for course and student objects
-Courses = Array.new
-Students = Array.new
-
-# Array of students who couldn't get into any classes
-Lost = Array.new
 
 # Initialize array for course objects
 course_table.each do |row|
@@ -201,75 +174,127 @@ def find_unenrolled_student(students_array)
             return student
         end
     end
-    return nul
+
+    return nil
 end
 
+# Find and return a course by its id
+def find_course_by_id(courses_array, id)
+    courses_array.each do |course|
+        if course.course_id == id
+            return course
+        end
+    end
+    return nil
+end
+
+# Find the course with the least number of students
+def find_smallest_course(courses_array)
+    num = courses_array[0].num_students
+    smallest = courses_array[0]
+    courses_array.each do |course|
+        if num > course.num_students
+            num = course.num_students
+            smallest = course
+        end
+    end
+
+    return smallest
+end
 
 # This is the important main loop; put this and the students arrays in a function
 #while Students.any? {|stu| stu.enrolled == false}
-while check_if_unenrolled_students(Students) == true
-    #student = Students.find {|stu| stu.enrolled == false}
-    student = find_unenrolled_student(Students)
 
-    # For every course the student has ranked try to enroll while not enrolled
-    student.ranked_courses.each do |ranked_course_id|
-        # This is so that the course object is being passed to the function, not the course id
-        ranked_course = Courses.find {|c| c.course_id == ranked_course_id}
+def fys_assignments
+    # Get input from user
+    print "What is the number of FYS courses/sections being offered? "
+    num_FYS = gets.chomp.to_i
 
-        try_to_enroll(student, ranked_course)
+    print "How many students are in the incoming class? "
+    num_students = gets.chomp.to_i
 
-        # If the student is enrolled, break the loop
-        if student.enrolled == true
-            break
+    print "What is the name of the csv file with the list of FYS courses/sections (example: in.csv)? "
+    courses_file = gets.chomp
+
+    print "What is the name of the csv file with the list of incoming students (example: in.csv)? "
+    students_file = gets.chomp
+
+    # Read from the CSV files
+    course_table = CSV.parse(File.read(courses_file), headers:true)
+    student_table = CSV.parse(File.read(students_file), headers:true)
+
+    # Create arrays for course and student objects
+    Courses = Array.new
+    Students = Array.new
+
+    # Array of students who couldn't get into any classes
+    Lost = Array.new
+    while check_if_unenrolled_students(Students) == true
+        #student = Students.find {|stu| stu.enrolled == false}
+        student = find_unenrolled_student(Students)
+
+        # For every course the student has ranked try to enroll while not enrolled
+        student.ranked_courses.each do |ranked_course_id|
+            # This is so that the course object is being passed to the function, not the course id
+            #ranked_course = Courses.find {|c| c.course_id == ranked_course_id}
+            ranked_course = find_course_by_id(Courses, ranked_course_id)
+
+            try_to_enroll(student, ranked_course)
+
+            # If the student is enrolled, break the loop
+            if student.enrolled == true
+                break
+            end
         end
-    end
 
-    # This runs if the student wasn't able to make it into any of their preffered classes
-    if student.enrolled == false
-        course_least_students = Courses.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
-        if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
-            student.enroll_in_any_course(course_least_students) # TODO make sure this works
+        # This runs if the student wasn't able to make it into any of their preffered classes
+        if student.enrolled == false
+            #course_least_students = Courses.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
+            course_least_students = find_smallest_course(Courses)
+            if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
+                student.enroll_in_any_course(course_least_students) # TODO make sure this works
+            end
         end
+
+        ###### Place student in list of unenrolled students if they couldn't get into any class ######
+        if student.enrolled == false
+            student.enrolled = true # They are not actually enrolled; they're enrolled in the loser list
+            student.chosen_course = nil # Just to make sure
+            Lost.push(student)
+        end
+        ############
+
     end
 
-    ###### Place student in list of unenrolled students if they couldn't get into any class ######
-    if student.enrolled == false
-        student.enrolled = true # They are not actually enrolled; they're enrolled in the loser list
-        student.chosen_course = nil # Just to make sure
-        Lost.push(student)
+    # testing
+    sFile = File.new("outs.txt", "w+")
+    if sFile
+        i = 0
+        sFile.syswrite("student_id, class")
+        sFile.syswrite("\n")
+        Students.each do |s|
+            if s.chosen_course.nil? == false # If the chosen course is not nil, meaning they are actually enrolled in something
+                sFile.syswrite("#{s.student_id}, #{s.chosen_id}")
+                sFile.syswrite("\n")
+                i += 1
+            end
+        end
+        puts "number of students is #{Students.length}"
+        puts "number of students in a course: #{i}"
+    else
+    puts "Unable to open file!"
     end
-    ############
 
-end
-
-# testing
-sFile = File.new("outs.txt", "w+")
-if sFile
-    i = 0
-    sFile.syswrite("student_id, class")
-    sFile.syswrite("\n")
-    Students.each do |s|
-        if s.chosen_course.nil? == false # If the chosen course is not nil, meaning they are actually enrolled in something
-            sFile.syswrite("#{s.student_id}, #{s.chosen_id}")
-            sFile.syswrite("\n")
+    cFile = File.new("outc.txt", "w+")
+    if cFile
+        i = 0
+        cFile.syswrite("num students")
+        sFile.syswrite("\n")
+        Courses.each do |c|
+            cFile.syswrite("#{c.num_students}")
+            cFile.syswrite("\n")
             i += 1
         end
+        puts "number of courses is: #{i}"
     end
-    puts "number of students is #{Students.length}"
-    puts "number of students in a course: #{i}"
-else
-   puts "Unable to open file!"
-end
-
-cFile = File.new("outc.txt", "w+")
-if cFile
-    i = 0
-    cFile.syswrite("num students")
-    sFile.syswrite("\n")
-    Courses.each do |c|
-        cFile.syswrite("#{c.num_students}")
-        cFile.syswrite("\n")
-        i += 1
-    end
-    puts "number of courses is: #{i}"
 end
