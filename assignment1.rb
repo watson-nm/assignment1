@@ -94,32 +94,8 @@ def find_student_by_id(students_array, id)
     return nil
 end
 
-# Initialize array for course objects
-course_table.each do |row|
-    Courses.push(Course.new(row[0], row[1], row[2]))
-end
-
-# Initialize array for student objects
-student_table.each do |row|
-    #temp = Students.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id DELETE
-    temp = find_student_by_id(Students, row[0])
-    # The variable temp acts as a pointer to the student object in the array
-    if !temp.nil? # If temp is not nil
-        # Check to make sure that the course actually exists
-        if Courses.any? {|c| c.course_id == row[1]} == true
-            temp.ranked_courses.push(row[1]) # Add the course id to student object's list
-        end
-    else
-        new_student = Student.new(row[0]) # No student object was found in the array, so make one
-        if Courses.any? {|c| c.course_id == row[1]} == true
-            new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
-        end
-        Students.push(new_student) # Add the new student to the array of students
-    end
-end
-
 # Try and enroll student in class
-def try_to_enroll(student, course)
+def try_to_enroll(students_array, student, course)
     course_rank = student.get_ranking(course)
 
     if course.num_students < 18
@@ -129,8 +105,8 @@ def try_to_enroll(student, course)
         if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
             rank_key = nil 
             # Lines that remove a student from the course to make room
-            #kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
-            kicked_student = find_student_by_id(Students, rank_key)
+            #kicked_student = students_array.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
+            kicked_student = find_student_by_id(students_array, rank_key)
             kicked_student.enrolled = false # Reset their enrollment status to false
             kicked_student.chosen_course = nil # Make sure that they don't retain the course
 
@@ -141,8 +117,8 @@ def try_to_enroll(student, course)
                 rank_key = course.rankings.key(lowest_rank)
     
                 # Lines that remove a student from the course to make room
-                #kicked_student = Students.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
-                kicked_student = find_student_by_id(Students, rank_key)
+                #kicked_student = students_array.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
+                kicked_student = find_student_by_id(students_array, rank_key)
                 kicked_student.enrolled = false # Reset their enrollment status to false
                 kicked_student.chosen_course = nil # Make sure that they don't retain the course
     
@@ -203,7 +179,7 @@ def find_smallest_course(courses_array)
 end
 
 # This is the important main loop; put this and the students arrays in a function
-#while Students.any? {|stu| stu.enrolled == false}
+#while students_array.any? {|stu| stu.enrolled == false}
 
 def fys_assignments
     # Get input from user
@@ -224,22 +200,48 @@ def fys_assignments
     student_table = CSV.parse(File.read(students_file), headers:true)
 
     # Create arrays for course and student objects
-    Courses = Array.new
-    Students = Array.new
+    courses_array = Array.new
+    students_array = Array.new
+
+    # Initialize array for course objects
+    course_table.each do |row|
+        courses_array.push(Course.new(row[0], row[1], row[2]))
+    end
+
+    # Initialize array for student objects
+    student_table.each do |row|
+        #temp = students_array.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id DELETE
+        temp = find_student_by_id(students_array, row[0])
+        # The variable temp acts as a pointer to the student object in the array
+        if !temp.nil? # If temp is not nil
+            # Check to make sure that the course actually exists
+            if courses_array.any? {|c| c.course_id == row[1]} == true
+                temp.ranked_courses.push(row[1]) # Add the course id to student object's list
+            end
+        else
+            new_student = Student.new(row[0]) # No student object was found in the array, so make one
+            if courses_array.any? {|c| c.course_id == row[1]} == true
+                new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
+            end
+            students_array.push(new_student) # Add the new student to the array of students
+        end
+    end
 
     # Array of students who couldn't get into any classes
-    Lost = Array.new
-    while check_if_unenrolled_students(Students) == true
-        #student = Students.find {|stu| stu.enrolled == false}
-        student = find_unenrolled_student(Students)
+    lost = Array.new
+
+    # The main loop
+    while check_if_unenrolled_students(students_array) == true
+        #student = students_array.find {|stu| stu.enrolled == false}
+        student = find_unenrolled_student(students_array)
 
         # For every course the student has ranked try to enroll while not enrolled
         student.ranked_courses.each do |ranked_course_id|
             # This is so that the course object is being passed to the function, not the course id
-            #ranked_course = Courses.find {|c| c.course_id == ranked_course_id}
-            ranked_course = find_course_by_id(Courses, ranked_course_id)
+            #ranked_course = courses_array.find {|c| c.course_id == ranked_course_id}
+            ranked_course = find_course_by_id(courses_array, ranked_course_id)
 
-            try_to_enroll(student, ranked_course)
+            try_to_enroll(students_array, student, ranked_course)
 
             # If the student is enrolled, break the loop
             if student.enrolled == true
@@ -249,8 +251,8 @@ def fys_assignments
 
         # This runs if the student wasn't able to make it into any of their preffered classes
         if student.enrolled == false
-            #course_least_students = Courses.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
-            course_least_students = find_smallest_course(Courses)
+            #course_least_students = courses_array.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
+            course_least_students = find_smallest_course(courses_array)
             if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
                 student.enroll_in_any_course(course_least_students) # TODO make sure this works
             end
@@ -260,7 +262,7 @@ def fys_assignments
         if student.enrolled == false
             student.enrolled = true # They are not actually enrolled; they're enrolled in the loser list
             student.chosen_course = nil # Just to make sure
-            Lost.push(student)
+            lost.push(student)
         end
         ############
 
@@ -272,14 +274,14 @@ def fys_assignments
         i = 0
         sFile.syswrite("student_id, class")
         sFile.syswrite("\n")
-        Students.each do |s|
+        students_array.each do |s|
             if s.chosen_course.nil? == false # If the chosen course is not nil, meaning they are actually enrolled in something
                 sFile.syswrite("#{s.student_id}, #{s.chosen_id}")
                 sFile.syswrite("\n")
                 i += 1
             end
         end
-        puts "number of students is #{Students.length}"
+        puts "number of students is #{students_array.length}"
         puts "number of students in a course: #{i}"
     else
     puts "Unable to open file!"
@@ -290,7 +292,7 @@ def fys_assignments
         i = 0
         cFile.syswrite("num students")
         sFile.syswrite("\n")
-        Courses.each do |c|
+        courses_array.each do |c|
             cFile.syswrite("#{c.num_students}")
             cFile.syswrite("\n")
             i += 1
@@ -298,3 +300,5 @@ def fys_assignments
         puts "number of courses is: #{i}"
     end
 end
+
+fys_assignments
