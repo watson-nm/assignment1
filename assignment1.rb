@@ -1,7 +1,10 @@
 #!/usr/bin/env ruby
 
-require 'csv'
+# TODO make the code more efficient by
+# Sorting students and courses in the arrays
+# Using binary search
 
+require 'csv'
 # Course object
 class Course
     # Initialize object with course id, number, and title
@@ -83,7 +86,6 @@ class Student
 end
 
 # Array to find a student in the array by their id
-# FIXME not returnin student object?
 def find_student_by_id(students_array, id)
     students_array.each do |student|
         if student.student_id == id
@@ -94,6 +96,16 @@ def find_student_by_id(students_array, id)
     return nil
 end
 
+# If the hash contains the specified value, return true
+def rankings_has_value(ranks_hash, value)
+    key = ranks_hash.key(value)
+    if key.nil? == false
+        return true
+    else
+        return false
+    end
+end
+
 # Try and enroll student in class
 def try_to_enroll(students_array, student, course)
     course_rank = student.get_ranking(course)
@@ -102,8 +114,10 @@ def try_to_enroll(students_array, student, course)
         student.enroll_in_ranked_course(course)
     else # Replacement section
         # Check to see if this student ranked the course higher than another student
-        if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
-            rank_key = nil 
+        # FIXME replace has_value
+        #if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
+        if rankings_has_value(course.rankings, nil) == true
+            rank_key = course.rankings.key(nil)
             # Lines that remove a student from the course to make room
             #kicked_student = students_array.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
             kicked_student = find_student_by_id(students_array, rank_key)
@@ -178,26 +192,57 @@ def find_smallest_course(courses_array)
     return smallest
 end
 
-# This is the important main loop; put this and the students arrays in a function
-#while students_array.any? {|stu| stu.enrolled == false}
+# Check if a course exists in the array
+def check_if_course_exists(courses_array, id)
+    courses_array.each do |course|
+        if course.course_id == id
+            return true
+        end
+    end
+    return false
+end
 
+# This is the important main loop
 def fys_assignments
+
     # Get input from user
-    print "What is the number of FYS courses/sections being offered? "
+    print "Number of FYS courses/sections being offered: "
     num_FYS = gets.chomp.to_i
 
-    print "How many students are in the incoming class? "
+    print "Number of students are in the incoming class: "
     num_students = gets.chomp.to_i
 
-    print "What is the name of the csv file with the list of FYS courses/sections (example: in.csv)? "
-    courses_file = gets.chomp
+    print "Name of the csv file with the list of FYS courses/sections: "
+    while courses_file = gets.chomp # This will loop until user enters a valid file name
+        if File.exist?(courses_file)
+            ext = File.extname(courses_file)
 
-    print "What is the name of the csv file with the list of incoming students (example: in.csv)? "
-    students_file = gets.chomp
+            if ext.eql? ".csv"
+                course_table = CSV.parse(File.read(courses_file), headers:true)
+                break
+            else
+                print "Not a csv file, please try again: "
+            end
+        else
+            print "File does not exist, please try again: "
+        end
+    end
 
-    # Read from the CSV files
-    course_table = CSV.parse(File.read(courses_file), headers:true)
-    student_table = CSV.parse(File.read(students_file), headers:true)
+    print "Name of the csv file with the list of incoming student and selections: "
+    while students_file = gets.chomp # This will loop until user enters a valid file name
+        if File.exist?(students_file)
+            ext = File.extname(students_file)
+
+            if ext.eql? ".csv"
+                student_table = CSV.parse(File.read(students_file), headers:true)
+                break
+            else
+                print "Not a csv file, please try again: "
+            end
+        else
+            print "File does not exist, please try again: "
+        end
+    end
 
     # Create arrays for course and student objects
     courses_array = Array.new
@@ -215,12 +260,14 @@ def fys_assignments
         # The variable temp acts as a pointer to the student object in the array
         if !temp.nil? # If temp is not nil
             # Check to make sure that the course actually exists
-            if courses_array.any? {|c| c.course_id == row[1]} == true
+            #if courses_array.any? {|c| c.course_id == row[1]} == true
+            if check_if_course_exists(courses_array, row[1]) == true
                 temp.ranked_courses.push(row[1]) # Add the course id to student object's list
             end
         else
             new_student = Student.new(row[0]) # No student object was found in the array, so make one
-            if courses_array.any? {|c| c.course_id == row[1]} == true
+            #if courses_array.any? {|c| c.course_id == row[1]} == true
+            if check_if_course_exists(courses_array, row[1]) == true
                 new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
             end
             students_array.push(new_student) # Add the new student to the array of students
@@ -268,36 +315,57 @@ def fys_assignments
 
     end
 
-    # testing
-    sFile = File.new("outs.txt", "w+")
-    if sFile
-        i = 0
-        sFile.syswrite("student_id, class")
-        sFile.syswrite("\n")
-        students_array.each do |s|
-            if s.chosen_course.nil? == false # If the chosen course is not nil, meaning they are actually enrolled in something
-                sFile.syswrite("#{s.student_id}, #{s.chosen_id}")
-                sFile.syswrite("\n")
-                i += 1
+    # Output
+    num_enrolled = 0
+    num_not_enrolled = 0
+    num_running = 0
+    num_not_running = 0
+
+    out1 = File.new("output-1.txt", "w+")
+    if out1
+        out1.syswrite("course id, student id")
+        out1.syswrite("\n")
+        students_array.each do |student|
+            if student.chosen_course.nil? == false
+                course_id = student.chosen_id
+                student_id = student.student_id
+                out1.syswrite("#{course_id}, #{student_id}")
+                out1.syswrite("\n")
+                num_enrolled += 1
+            else
+                num_not_enrolled += 1
             end
         end
-        puts "number of students is #{students_array.length}"
-        puts "number of students in a course: #{i}"
-    else
-    puts "Unable to open file!"
     end
 
-    cFile = File.new("outc.txt", "w+")
-    if cFile
-        i = 0
-        cFile.syswrite("num students")
-        sFile.syswrite("\n")
-        courses_array.each do |c|
-            cFile.syswrite("#{c.num_students}")
-            cFile.syswrite("\n")
-            i += 1
+    out2 = File.new("output-2.txt", "w+")
+    if out2
+        out2.syswrite("course id, course number, course name")
+        out2.syswrite("\n")
+        courses_array.each do |course|
+            if course.num_students < 10
+                out2.syswrite("#{course.course_id}, #{course.course_num}, #{course.course_title}, # students < 10")
+                out2.syswrite("\n")
+                num_not_running += 1
+            else
+                out2.syswrite("#{course.course_id}, #{course.course_num}, #{course.course_title}")
+                out2.syswrite("\n")
+                num_running += 1
+            end
+
+            course.rankings.keys.each do |student_id|
+                out2.syswrite("#{student_id}")
+                out2.syswrite("\n")
+            end
         end
-        puts "number of courses is: #{i}"
+    end
+
+    out3 = File.new("output-3.txt", "w+")
+    if out3
+        out3.syswrite("Number of students enrolled in a course: #{num_enrolled}\n")
+        out3.syswrite("Number of students who were not enrolled in a course: #{num_not_enrolled}\n")
+        out3.syswrite("Number of courses that can run: #{num_running}\n")
+        out3.syswrite("Number of courses that can not run: #{num_not_running}\n")
     end
 end
 
