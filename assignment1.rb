@@ -1,9 +1,5 @@
 #!/usr/bin/env ruby
 
-# TODO make the code more efficient by
-# Sorting students and courses in the arrays
-# Using binary search
-
 require 'csv'
 # Course object
 class Course
@@ -85,10 +81,199 @@ class Student
     attr_accessor :chosen_course
 end
 
-# Array to find a student in the array by their id
+# Merge sort for courses array
+def sort_courses_array(courses_array)
+    if courses_array.length <= 1
+        return courses_array
+    end
+
+    max = courses_array.length
+    center = (max/2).round
+
+    left_array = courses_array[0...center]
+    right_array = courses_array[center...max]
+
+    left_array = sort_courses_array(left_array)
+    right_array = sort_courses_array(right_array)
+
+    return merge_courses(left_array, right_array)
+end
+
+# Merge for courses arrays
+def merge_courses(left_array, right_array)
+    merge = Array.new
+
+    while left_array.empty? == false && right_array.empty? == false do
+        if left_array[0].course_id > right_array[0].course_id
+            merge.push(right_array[0])
+            right_array.shift
+        else
+            merge.push(left_array[0])
+            left_array.shift
+        end
+    end
+
+    while left_array.empty? == false
+        merge.push(left_array[0])
+        left_array.shift
+    end
+
+    while right_array.empty? == false
+        merge.push(right_array[0])
+        right_array.shift
+    end
+
+    return merge
+end
+
+# Merge sort for students array
+def sort_students_array(students_array)
+    if students_array.length <= 1
+        return students_array
+    end
+
+    length = students_array.length
+    center = (length/2).round
+
+    left_array = students_array[0...center]
+    right_array = students_array[center...length]
+
+    left_array = sort_students_array(left_array)
+    right_array = sort_students_array(right_array)
+
+    return merge_students(left_array, right_array)
+end
+
+# Merge for students array
+def merge_students(left_array, right_array)
+    merge = Array.new
+
+    while left_array.empty? == false && right_array.empty? == false do
+        if left_array[0].student_id > right_array[0].student_id
+            merge.push(right_array[0])
+            right_array.shift
+        else
+            merge.push(left_array[0])
+            left_array.shift
+        end
+    end
+
+    while left_array.empty? == false
+        merge.push(left_array[0])
+        left_array.shift
+    end
+
+    while right_array.empty? == false
+        merge.push(right_array[0])
+        right_array.shift
+    end
+
+    return merge
+end
+
+# Array to find a student in the array by their id using binary search
 def find_student_by_id(students_array, id)
+    low = 0
+    high = students_array.length - 1
+
+    while low <= high
+        mid = low + (high - low)/2
+
+        if students_array[mid].student_id < id
+            low = mid + 1
+        elsif students_array[mid].student_id > id
+            high = mid - 1
+        elsif students_array[mid].student_id == id
+            return students_array[mid]
+        end
+    end
+
+    return nil
+end
+
+# Find and return a course by its id using binary search
+def find_course_by_id(courses_array, id)
+    low = 0
+    high = courses_array.length - 1
+
+    while low <= high
+        mid = low + (high - low)/2
+
+        if courses_array[mid].course_id < id
+            low = mid + 1
+        elsif courses_array[mid].course_id > id
+            high = mid - 1
+        elsif courses_array[mid].course_id == id
+            return courses_array[mid]
+        end
+    end
+
+    return nil
+end
+
+# Check if a course exists in the array using binary search
+def check_if_course_exists(courses_array, id)
+    low = 0
+    high = courses_array.length - 1
+
+    while low <= high
+        mid = low + (high - low)/2
+
+        if courses_array[mid].course_id < id
+            low = mid + 1
+        elsif courses_array[mid].course_id > id
+            high = mid - 1
+        elsif courses_array[mid].course_id == id
+            return true
+        end
+    end
+
+    return false
+end
+
+# Find the course with the least number of students
+def find_smallest_course(courses_array)
+    num = courses_array[0].num_students
+    smallest = courses_array[0]
+    courses_array.each do |course|
+        if num > course.num_students
+            num = course.num_students
+            smallest = course
+        end
+    end
+
+    return smallest
+end
+
+# Find the largest course with less than 10 students
+def find_largest_smaller_ten(courses_array)
+    num = -1
+    target = nil # If no course with less than 10 students exists function will return nil
+    courses_array.each do |course|
+        if course.num_students < 10 && course.num_students > num
+            num = course.num_students
+            target = course
+        end
+    end
+
+    return target
+end
+
+# Check if there are any unenrolled students
+def check_if_unenrolled_students(students_array)
     students_array.each do |student|
-        if student.student_id == id
+        if student.enrolled == false
+            return true
+        end
+    end
+
+    return false
+end
+
+# Return an unenrolled student
+def find_unenrolled_student(students_array)
+    students_array.each do |student|
+        if student.enrolled == false
             return student
         end
     end
@@ -114,12 +299,9 @@ def try_to_enroll(students_array, student, course)
         student.enroll_in_ranked_course(course)
     else # Replacement section
         # Check to see if this student ranked the course higher than another student
-        # FIXME replace has_value
-        #if course.rankings.has_value?(nil) == true # If there exists a student who didn't have this course in their ranking, replace them
         if rankings_has_value(course.rankings, nil) == true
             rank_key = course.rankings.key(nil)
             # Lines that remove a student from the course to make room
-            #kicked_student = students_array.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
             kicked_student = find_student_by_id(students_array, rank_key)
             kicked_student.enrolled = false # Reset their enrollment status to false
             kicked_student.chosen_course = nil # Make sure that they don't retain the course
@@ -127,11 +309,10 @@ def try_to_enroll(students_array, student, course)
             course.rankings.delete(rank_key) # Delete the old student from the course hash map
         else
             lowest_rank = course.rankings.values.max # This should get the student who ranked the class lowest
-            if lowest_rank > course_rank # Compare ranks FIXME is the course here an object or the id
+            if lowest_rank > course_rank # Compare ranks
                 rank_key = course.rankings.key(lowest_rank)
     
                 # Lines that remove a student from the course to make room
-                #kicked_student = students_array.find {|stu| stu.student_id == rank_key} # Get the student to be removed DELETE
                 kicked_student = find_student_by_id(students_array, rank_key)
                 kicked_student.enrolled = false # Reset their enrollment status to false
                 kicked_student.chosen_course = nil # Make sure that they don't retain the course
@@ -146,65 +327,8 @@ def try_to_enroll(students_array, student, course)
     end
 end
 
-# Check if there are any unenrolled students
-def check_if_unenrolled_students(students_array)
-    students_array.each do |student|
-        if student.enrolled == false
-            return true
-        end
-    end
-
-    return false
-end
-
-# Return an unenrolled student
-def find_unenrolled_student(students_array)
-    students_array.each do |student|
-        if student.enrolled == false
-            return student
-        end
-    end
-
-    return nil
-end
-
-# Find and return a course by its id
-def find_course_by_id(courses_array, id)
-    courses_array.each do |course|
-        if course.course_id == id
-            return course
-        end
-    end
-    return nil
-end
-
-# Find the course with the least number of students
-def find_smallest_course(courses_array)
-    num = courses_array[0].num_students
-    smallest = courses_array[0]
-    courses_array.each do |course|
-        if num > course.num_students
-            num = course.num_students
-            smallest = course
-        end
-    end
-
-    return smallest
-end
-
-# Check if a course exists in the array
-def check_if_course_exists(courses_array, id)
-    courses_array.each do |course|
-        if course.course_id == id
-            return true
-        end
-    end
-    return false
-end
-
-# This is the important main loop
+# The main function
 def fys_assignments
-
     # Get input from user
     print "Number of FYS courses/sections being offered: "
     num_FYS = gets.chomp.to_i
@@ -255,24 +379,24 @@ def fys_assignments
 
     # Initialize array for student objects
     student_table.each do |row|
-        #temp = students_array.find {|stu| stu.student_id == row[0]} # This looks for a student object with a matching student id DELETE
         temp = find_student_by_id(students_array, row[0])
         # The variable temp acts as a pointer to the student object in the array
         if !temp.nil? # If temp is not nil
             # Check to make sure that the course actually exists
-            #if courses_array.any? {|c| c.course_id == row[1]} == true
             if check_if_course_exists(courses_array, row[1]) == true
                 temp.ranked_courses.push(row[1]) # Add the course id to student object's list
             end
         else
             new_student = Student.new(row[0]) # No student object was found in the array, so make one
-            #if courses_array.any? {|c| c.course_id == row[1]} == true
             if check_if_course_exists(courses_array, row[1]) == true
                 new_student.ranked_courses.push(row[1]) # Once the new student exists add the class to its list
             end
             students_array.push(new_student) # Add the new student to the array of students
         end
     end
+
+    courses_array = sort_courses_array(courses_array)
+    students_array = sort_students_array(students_array)
 
     # Array of students who couldn't get into any classes
     lost = Array.new
@@ -285,7 +409,6 @@ def fys_assignments
         # For every course the student has ranked try to enroll while not enrolled
         student.ranked_courses.each do |ranked_course_id|
             # This is so that the course object is being passed to the function, not the course id
-            #ranked_course = courses_array.find {|c| c.course_id == ranked_course_id}
             ranked_course = find_course_by_id(courses_array, ranked_course_id)
 
             try_to_enroll(students_array, student, ranked_course)
@@ -296,23 +419,30 @@ def fys_assignments
             end
         end
 
-        # This runs if the student wasn't able to make it into any of their preffered classes
+        # These sections run if the student wasn't able to make it into any of their ranked classes
+
+        # Find the largest course with less than ten students enrolled and try to enroll there
         if student.enrolled == false
-            #course_least_students = courses_array.min_by {|c| c.num_students} # The course with the least amount of students # FIXME min_by
-            course_least_students = find_smallest_course(courses_array)
-            if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
-                student.enroll_in_any_course(course_least_students) # TODO make sure this works
+            largest_less_than_ten = find_largest_smaller_ten(courses_array) # If the value is nil there are no classes with less than ten students
+            if largest_less_than_ten.nil? == false
+                student.enroll_in_any_course(largest_less_than_ten)
             end
         end
 
-        ###### Place student in list of unenrolled students if they couldn't get into any class ######
+        # Find the class with the least amount of students and try to enroll there
+        if student.enrolled == false
+            course_least_students = find_smallest_course(courses_array)
+            if course_least_students.num_students < 18 # If the smallest amount of students in a class isn't 18, a student can be placed
+                student.enroll_in_any_course(course_least_students)
+            end
+        end
+
+        # Place student in list of unenrolled students if they couldn't get into any class
         if student.enrolled == false
             student.enrolled = true # They are not actually enrolled; they're enrolled in the loser list
             student.chosen_course = nil # Just to make sure
             lost.push(student)
         end
-        ############
-
     end
 
     # Output
