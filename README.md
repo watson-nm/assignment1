@@ -1,10 +1,5 @@
-Nola Watson
-Assignment 1
+# CSC-415 Assignment1
 
-VM name: csc415-server19.hpc.tcnj.edu
-Password for student1: watson-nm@tcnj
-File path for assignment program: /home/student1/vm-csc415/assignment1/assignment1.rb
-Github repository URL: https://github.com/watson-nm/assignment1
 How to run the program:
 - Navigate to the directory containing the `assignment1.rb` file and input files
 - In the terminal run `ruby assignment1.rb`
