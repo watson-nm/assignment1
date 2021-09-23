@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+## Nola Watson
+## Assignment 1
+
 require 'csv'
 # Course object
 class Course
@@ -26,7 +29,7 @@ class Student
         @ranked_courses = Array.new # Array of course ids in order of preference
         @chosen_course  # Course the student is enrolled in
         @chosen_id # The id of the course the student is enrolled in
-        @chosen_rank # TODO get rank from array
+        @chosen_rank # This get rank from array
         @enrolled = false
     end
 
@@ -496,6 +499,31 @@ def fys_assignments
         out3.syswrite("Number of students who were not enrolled in a course: #{num_not_enrolled}\n")
         out3.syswrite("Number of courses that can run: #{num_running}\n")
         out3.syswrite("Number of courses that can not run: #{num_not_running}\n")
+    end
+    
+    # Check if user input matched number of courses/students
+    fys_match = false
+    if num_FYS == courses_array.length
+        fys_match = true
+    end
+
+    student_match = false
+    if num_students == students_array.length
+        student_match = true
+    end
+
+    out4 = File.new("input-nums.txt", "w+")
+    if out4
+        if fys_match == true
+            out4.syswrite("User input for number of FYS courses matches input read from file\n")
+        else
+            out4.syswrite("User input for number of FYS courses does not match input read from file\n")
+        end
+        if student_match
+            out4.syswrite("User input for number of students matches input read from file\n")
+        else
+            out4.syswrite("User input for number of students does not match input read from file\n")
+        end
     end
 end
 
