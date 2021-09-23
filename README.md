@@ -16,3 +16,4 @@ Known bugs, issues, limitations, etc.:
 - When entering file names, if the file does not end with `.csv` the program will ask the user for another input
 - All students should be placed in courses, except for when the number of students exceeds the number of courses times 18
 - All courses should be able to run, except for when the number of students is less than number of courses times 10
+- When the program is run the output files `output-1.txt`, `output-2.txt`, `output-3.txt` and `input-nums.txt` will be overwriten with new information
